@@ -9,7 +9,6 @@
   "author": "Tom Lagier <tom@thomaslagier.me> (http://thisblogisdiamonds.com)",
   "license": "ISC",
   "dependencies": {
-    "readable-stream": "^2.0.2",
     "resolve": "^1.1.6",
     "through2": "^2.0.0",
     "underscore": "^1.8.3",

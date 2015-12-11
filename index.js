@@ -1,12 +1,11 @@
 /*eslint-env node*/
 "use strict";
 
-var through = require("through2");
 var fs = require("fs");
 var path = require("path");
 var _ = require("underscore");
+var through = require("through2");
 var resolve = require("resolve");
-var gulp = require("gulp");
 var vinylFile = require("vinyl-file");
 
 function JadePathWriter(options) {
