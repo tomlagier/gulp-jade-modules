@@ -8,96 +8,131 @@ var through = require("through2");
 var resolve = require("resolve");
 var vinylFile = require("vinyl-file");
 
+//Params
+//  (object)[optional] options -
+//    {
+//      flag: (string) default "@@", flag before include to resolve in node_modules
+//      extension: (string) default "jade", file type of include,
+//      prefixes: (array) array of strings to always attempt to resolve partials in
+//    }
+//Returns
+//  (stream) fully resolved stream of all included/extended files
 function JadePathWriter(options) {
 
   options = options || {};
 
-  options.suffix = options.suffix || "jade";
-  options.prefix = options.prefix || "@@";
+  //Trigger after include
+  options.flag = options.flag || "@@";
 
+  //File extension
+  options.extension = options.suffix || "jade";
+
+  //Params
+  //  (string) fileContents - contents of file to parse
+  //Return
+  //  [{
+  //    path: (string) matched file path,
+  //    nodeModule: (bool) should resolve in node_modules
+  //  }, ...]
   function parsePaths(fileContents) {
-    var jadeRegex = new RegExp("(?:include\\s|extends\\s)(?:[\'|\"])?(" + options.prefix + "|)(.*\." + options.suffix + "?)(?:[\'|\"|\\s])", "gi");
+
+    //Matches [includes|extends] [(optional)flag][path][extension]
+    //ex: extends ./templates/_overlay.jade
+    //ex: include @@my-templates/_button.jade
+    var jadeRegex = new RegExp("(?:include\\s|extends\\s)(?:[\'|\"])?(" + options.flag + "|)(.*\." + options.extension + "?)(?:[\'|\"|\\s])", "gi");
     var match,
         paths = [];
 
+    //Flag whether each parsed path should be resolved to node_modules or not
     while((match = jadeRegex.exec(fileContents)) !== null) {
-      if(match[1] === options.prefix) {
-        paths.push({
-          path: match[2],
-          nodeModule: true
-        });
-      } else {
-        paths.push({
-          path: match[2],
-          nodeModule: false
-        });
-      }
+      paths.push({
+        path: match[2],
+        nodeModule: match[1] === options.flag
+      });
     }
 
     return paths;
   }
 
+  //Params
+  //  (string) filePath - current file path (probably relative)
+  //  (bool) isModule - whether to resolve in node_modules or not
+  //  (array) currentPrefixes - prefixes to attempt to resolve file in
+  //Returns
+  //  (string) fully resolved path. undefined if path does not exist
   function resolvePath(filePath, isModule, currentPrefixes) {
-
-    var returnPath, exists, fullPath;
-
-    //If it's not a module, resolve relative to the project
-    if(!isModule) {
-      exists = false;
-      var testPath;
-
-      var prefixes = [
-        "",
-        "./"
-      ];
-
-      //Check other prefixes
-      if(options.prefixes) {
-        prefixes = prefixes.concat(options.prefixes);
-      }
-
-      //Merge our relative prefixes
-      if(currentPrefixes) {
-        prefixes = prefixes.concat(currentPrefixes)
-      }
-
-      //Make sure we're based out of a
-      if(filePath[0] !== path.sep) {
-        filePath = path.sep + filePath;
-      }
-
-      _.each(prefixes, function(prefix) {
-        try {
-          testPath = path.resolve(prefix + filePath)
-          // console.log(testPath);
-          fs.lstatSync(testPath);
-          exists = true;
-        } catch(e) {}
-      });
-
-      returnPath = {
-        exists: exists,
-        path: exists ? testPath: undefined
-      }
-
-    //If it is a module, resolve through the node_modules directory
-    } else {
-      try {
-        fullPath = resolve.sync(filePath);
-        exists = true;
-      } catch (e) {
-        exists = false;
-      }
-
-      returnPath = {
-        exists: exists,
-        path: fullPath
-      }
-    }
-
-    return returnPath.exists ? returnPath.path : undefined;
+    return isModule ? resolveNodePath(filePath) : resolveLocalPath(filePath, currentPrefixes);
   }
 
+  //Params
+  //  (string) filePath - current file path (probably relative)
+  //  (array) currentPrefixes - prefixes to attempt to resolve file in
+  //Returns
+  //  (string) fully resolved path. undefined if path does note exist
+  function resolveLocalPath(filePath, currentPrefixes){
+
+    //Root and local directory are our basis
+    var prefixes = [
+      path.sep,
+      "." + path.sep
+    ];
+
+    //Check other prefixes
+    if(options.prefixes) {
+      prefixes = prefixes.concat(options.prefixes);
+    }
+
+    //Merge our relative prefixes
+    if(currentPrefixes) {
+      prefixes = prefixes.concat(currentPrefixes)
+    }
+
+    //Make sure we have a leading slash for our path in case our prefixes are given without a separator
+    if(filePath[0] !== path.sep) {
+      filePath = path.sep + filePath;
+    }
+
+    //Sort by number of separators in prefix, descending
+    var sortedPrefixes = _.sortBy(prefixes, function(prefix){
+      return prefix.split(path.sep).length;
+    }).reverse();
+
+    //Break on our first existing path, returning the longest (most specific) matching path
+    var exists = false, testPath;
+    for(var i = 0; (i < sortedPrefixes.length) && (!exists); i++) {
+      testPath = path.resolve(sortedPrefixes[i] + filePath);
+      try {
+        fs.lstatSync(testPath);
+        exists = true;
+      } catch(e) {}
+    }
+
+    return exists ? testPath : undefined;
+  }
+
+  //Params
+  //  (string) filePath - current file path (relative to node_modules)
+  //Returns
+  //  (string) fully resolved path. undefined if path does not exist
+  function resolveNodePath(filePath){
+
+    try {
+      var fullPath = resolve.sync(filePath);
+    } catch(e) {
+      return undefined;
+    }
+    return fullPath;
+  }
+
+  //Params
+  //  (file) file - current file stream
+  //  (array) paths - array of paths within file to rewrite
+  //    [{
+  //      path: (string) path within original file to replace,
+  //      fullPath: (string) fully resolved path to write instead
+  //    }, ...]
+  //Returns
+  //  (file) rewritten file
   function rewritePaths(file, paths) {
     var contents = String(file.contents);
 
@@ -105,7 +140,7 @@ function JadePathWriter(options) {
       if(!path.nodeModule) {
         contents = contents.replace(path.path, path.fullPath);
       } else {
-        contents = contents.replace(options.prefix + path.path, path.fullPath);
+        contents = contents.replace(options.flag + path.path, path.fullPath);
       }
     });
 
@@ -114,34 +149,49 @@ function JadePathWriter(options) {
     return file;
   }
 
-  var files = [];
-
+  //Called recursively to process the file tree of includes and extends
+  //Params
+  //  (file) file - file stream to rewrite
+  //  (array) prefixes - prefixes to check relative paths against
+  //Returns
+  //  (array) all file streams
   function processFile(file, prefixes) {
     //Matches common Jade includes and extends
-    var paths = parsePaths(String(file.contents)), resolvedPath, childFile, contents, dirname;
+    var paths = parsePaths(String(file.contents)), resolvedPath, childFile, contents, dirname, files = [];
 
     _.each(paths, function(modulePath, ind) {
+      //Resolve each one of our paths
       paths[ind].fullPath = resolvePath(modulePath.path, modulePath.nodeModule, prefixes);
-      if(modulePath.fullPath) {
+
+      //If path resolved successfully
+      if(paths[ind].fullPath) {
+
+        //Load file and pass current directory as prefix
         childFile = vinylFile.readSync(paths[ind].fullPath);
-        contents = String(childFile.contents);
         dirname = path.dirname(paths[ind].fullPath);
-        processFile(childFile, [dirname]);
+
+        //Process child files
+        files = files.concat(processFile(childFile, [dirname]));
       }
     });
 
     //rewrite paths in file
     file = rewritePaths(file, paths);
 
-    //Add files to stream
     files.push(file);
+
+    return files;
   }
 
+  //Through stream that starts file processing for each input file
   return through.obj(function(file, encoding, cb){
-    processFile(file);
+    var files = processFile(file);
+    //Add all dependency files to stream
     _.each(files, function(file) {
       this.push(file)
     }.bind(this));
+
+    //Chain stream
     cb();
   });
 }
