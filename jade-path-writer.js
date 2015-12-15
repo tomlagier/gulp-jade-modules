@@ -154,7 +154,7 @@ module.exports = function JadePathWriter(options) {
   //  (array) all file streams
   this.processFile = function(file, prefixes) {
     //Matches common Jade includes and extends
-    var paths = this.parsePaths(String(file.contents)), resolvedPath, childFile, contents, dirname, files = [];
+    var paths = this.parsePaths(String(file.contents)), resolvedPath, childFile, contents, dirname, files = [], allFiles;
 
     _.each(paths, function(modulePath, ind) {
       //Resolve each one of our paths
@@ -168,7 +168,21 @@ module.exports = function JadePathWriter(options) {
         dirname = path.dirname(paths[ind].fullPath);
 
         //Process child files
-        files = files.concat(this.processFile(childFile, [dirname]));
+        //Remove all duplicates
+        allFiles = files.concat(this.processFile(childFile, [dirname]));
+        var isUnique = true;
+        allFiles.forEach(function(file){
+          isUnique = true;
+          files.forEach(function(testFile){
+            if(testFile.path === file.path) {
+              isUnique = false;
+            }
+          });
+
+          if(isUnique) {
+            files.push(file);
+          }
+        });
       }
     }.bind(this));
 

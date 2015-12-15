@@ -6,7 +6,3 @@ describe('JadePathWriter', function() {
   require(path.resolve(__dirname + '/rewritePaths'));
   require(path.resolve(__dirname + '/processFile'));
 });
-
-describe('Gulp plugin', function() {
-
-});
