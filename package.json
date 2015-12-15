@@ -1,13 +1,26 @@
 {
-  "name": "gulp-jade-filepaths",
+  "name": "gulp-jade-modules",
   "version": "1.0.0",
   "description": "Parses jade file includes and attempts to resolve them in the filesystem and node_modules",
   "main": "index.js",
   "scripts": {
     "test": "mocha tests"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tomlagier/gulp-jade-modules.git"
+  },
+  "keywords": [
+    "jade",
+    "modules",
+    "gulp",
+    "node_modules"
+  ],
   "author": "Tom Lagier <tom@tomlagier.com> (http://tomlagier.com)",
-  "license": "ISC",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tomlagier/gulp-jade-modules/issues"
+  },
   "dependencies": {
     "resolve": "^1.1.6",
     "through2": "^2.0.0",
