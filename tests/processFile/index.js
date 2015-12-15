@@ -2,7 +2,6 @@ var fs = require('fs');
 var JadePathWriter = require('../../jade-path-writer.js');
 var chai = require('chai');
 var path = require('path');
-var vinyl = require('vinyl');
 var vinylFile = require('vinyl-file');
 
 chai.should();

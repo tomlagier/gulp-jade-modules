@@ -1,12 +1,12 @@
 {
   "name": "gulp-jade-filepaths",
   "version": "1.0.0",
-  "description": "Parses jade file includes and attempts to resolve them in node_modules",
+  "description": "Parses jade file includes and attempts to resolve them in the filesystem and node_modules",
   "main": "index.js",
   "scripts": {
-    "test": "test"
+    "test": "mocha tests"
   },
-  "author": "Tom Lagier <tom@thomaslagier.me> (http://thisblogisdiamonds.com)",
+  "author": "Tom Lagier <tom@tomlagier.com> (http://tomlagier.com)",
   "license": "ISC",
   "dependencies": {
     "resolve": "^1.1.6",
