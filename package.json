@@ -1,6 +1,6 @@
 {
   "name": "gulp-jade-modules",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Parses jade file includes and attempts to resolve them in the filesystem and node_modules",
   "main": "index.js",
   "scripts": {
